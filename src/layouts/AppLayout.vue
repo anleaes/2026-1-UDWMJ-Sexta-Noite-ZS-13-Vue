@@ -1,84 +1,85 @@
 <template>
-  <el-container class="layout">
-    <el-header height="auto" class="header">
-      <MotionReveal :y="12" :duration="400" class="header-motion">
-        <div class="header-inner">
-          <div class="brand" @click="$router.push({ name: 'home' })">
-            <span class="brand-icon"><ImageIcon :size="26" stroke-width="1.75" /></span>
-            <div>
-              <span class="brand-name">Museu & Galeria</span>
-              <span class="brand-sub">SDM · Projeto A3</span>
-            </div>
-          </div>
+  <div class="d-flex flex-column min-vh-100">
+    <a href="#main-content" class="skip-link">Pular para o conteúdo</a>
 
-          <nav class="nav">
-            <router-link
-              v-for="(link, i) in links"
-              :key="link.to.name"
-              :to="link.to"
-              class="nav-link"
-              :style="{ '--nav-delay': `${i * 40}ms` }"
-            >
-              <component :is="link.icon" :size="16" stroke-width="2" class="nav-icon" />
-              {{ link.label }}
-            </router-link>
-          </nav>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top shadow-sm" aria-label="Navegação principal">
+      <div class="container">
+        <router-link class="navbar-brand d-flex align-items-center gap-2" :to="{ name: 'home' }">
+          <span class="brand-icon rounded-3 d-flex align-items-center justify-content-center text-white bg-primary" aria-hidden="true">
+            <AppIcon name="Image" :size="18" decorative />
+          </span>
+          <span translate="no">Museu & Galeria</span>
+        </router-link>
 
-          <div class="header-user">
-            <el-tag v-if="auth.canManage" size="small" type="warning" effect="plain">{{ auth.roleLabel }}</el-tag>
-            <span class="user-name">{{ auth.user?.first_name }}</span>
-            <el-button size="small" @click="logout">
-              <LogOut :size="14" stroke-width="2" style="margin-right: 4px" />
-              Sair
-            </el-button>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#mainNav"
+          aria-controls="mainNav"
+          :aria-expanded="menuMobileAberto"
+          aria-label="Abrir menu de navegação"
+          @click="menuMobileAberto = !menuMobileAberto"
+        >
+          <span class="navbar-toggler-icon" />
+        </button>
+
+        <div id="mainNav" class="collapse navbar-collapse">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-lg-1">
+            <li v-for="link in linksMenuPrincipal" :key="link.name" class="nav-item">
+              <router-link
+                :to="{ name: link.name }"
+                class="nav-link rounded-pill px-3 d-inline-flex align-items-center gap-1"
+                active-class="active fw-semibold bg-primary text-white"
+              >
+                <AppIcon :name="link.icon" :size="18" decorative />
+                {{ link.label }}
+              </router-link>
+            </li>
+          </ul>
+
+          <div class="d-flex align-items-center gap-2">
+            <span v-if="auth.canStaff" class="badge text-bg-warning">{{ auth.roleLabel }}</span>
+            <span v-else class="badge text-bg-secondary">{{ auth.roleLabel }}</span>
+            <span class="small text-muted d-none d-md-inline">{{ auth.user?.first_name }}</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" aria-label="Sair da conta" @click="logout">
+              <AppIcon name="LogOut" :size="18" decorative />
+            </button>
           </div>
         </div>
-      </MotionReveal>
-    </el-header>
-
-    <el-main class="layout-main">
-      <div class="page">
-        <router-view v-slot="{ Component, route }">
-          <transition name="page-fade" mode="out-in">
-            <component :is="Component" :key="route.path" />
-          </transition>
-        </router-view>
       </div>
-    </el-main>
+    </nav>
 
-    <footer class="footer">
-      Sistema de Gerenciamento de Museus e Galerias — trabalho acadêmico SDM 2026
+    <main id="main-content" class="container py-4 flex-grow-1" tabindex="-1">
+      <router-view v-slot="{ Component, route }">
+        <transition name="page-fade" mode="out-in">
+          <component :is="Component" :key="route.path" />
+        </transition>
+      </router-view>
+    </main>
+
+    <footer class="border-top bg-white py-3 text-center text-muted small">
+      Sistema de Gerenciamento de Museus e Galerias — SDM 2026
     </footer>
-  </el-container>
+  </div>
 </template>
 
 <script setup>
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  Home,
-  Building2,
-  Palette,
-  Calendar,
-  User,
-  LogOut,
-  Image as ImageIcon,
-} from 'lucide-vue-next'
-import MotionReveal from '@/components/MotionReveal.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { useLenis } from '@/composables/useLenis'
 import { useAuthStore } from '@/stores/auth'
+import { obterLinksMenuPrincipal } from '@/constants/navegacao'
 
 useLenis()
 
 const router = useRouter()
 const auth = useAuthStore()
+const menuMobileAberto = ref(false)
 
-const links = [
-  { to: { name: 'home' }, label: 'Início', icon: Home },
-  { to: { name: 'galerias' }, label: 'Galerias', icon: Building2 },
-  { to: { name: 'obras' }, label: 'Obras', icon: Palette },
-  { to: { name: 'exposicoes' }, label: 'Exposições', icon: Calendar },
-  { to: { name: 'perfil' }, label: 'Perfil', icon: User },
-]
+/** Links do navbar — inclui Categorias só para funcionário/admin */
+const linksMenuPrincipal = computed(() => obterLinksMenuPrincipal(auth.canStaff))
 
 function logout() {
   auth.logout()
@@ -87,152 +88,12 @@ function logout() {
 </script>
 
 <style scoped>
-.layout {
-  min-height: 100vh;
-  background: var(--bg);
-  flex-direction: column;
-}
-
-.header-motion {
-  width: 100%;
-}
-
-.header {
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  padding: 0;
-  height: auto !important;
-}
-
-.header-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0.85rem 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  cursor: pointer;
-  user-select: none;
-  transition: opacity 0.2s;
-}
-
-.brand:hover {
-  opacity: 0.85;
-}
-
 .brand-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--primary-light);
-  color: var(--primary);
+  width: 36px;
+  height: 36px;
 }
 
-.brand-name {
-  display: block;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 1.15rem;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.brand-sub {
-  display: block;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.nav {
-  display: flex;
-  gap: 0.25rem;
-  flex: 1;
-  flex-wrap: wrap;
-}
-
-.nav-link {
-  padding: 0.4rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  text-decoration: none;
-  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  animation: nav-in 0.45s var(--ease-out) both;
-  animation-delay: var(--nav-delay, 0ms);
-}
-
-@keyframes nav-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-
-.nav-icon {
-  flex-shrink: 0;
-}
-
-.nav-link:hover {
-  background: #f3f4f6;
-  color: var(--text);
-  transform: translateY(-1px);
-}
-
-.nav-link.router-link-active {
-  background: var(--primary-light);
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.header-user {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.user-name {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.footer {
-  text-align: center;
-  padding: 1rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  border-top: 1px solid var(--border);
-  background: #fff;
-}
-
-@media (max-width: 640px) {
-  .header-inner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .nav {
-    width: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nav-link {
-    animation: none;
-  }
+.nav-link.active {
+  color: #fff !important;
 }
 </style>

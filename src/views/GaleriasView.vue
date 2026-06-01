@@ -1,102 +1,116 @@
 <template>
-  <div v-loading="loading">
-    <PageHeader
-      theme="galerias"
-      title="Galerias"
-      subtitle="Museus e espaços expositivos"
-    >
-      <template #icon>
-        <Building2 :size="32" stroke-width="1.5" />
-      </template>
+  <AppSpinner :show="loading">
+    <PageHeader theme="galerias" title="Galerias" subtitle="Museus e espaços expositivos">
+      <template #icon><AppIcon name="Building2" :size="28" decorative /></template>
       <template #extra>
-        <el-tag type="success" effect="plain">{{ abertas }} abertas</el-tag>
-        <el-button v-if="auth.canManage" type="primary" @click="openCreate">
+        <span class="badge text-bg-success tabular-nums">{{ abertas }} abertas</span>
+        <button v-if="auth.canStaff" type="button" class="btn btn-primary btn-sm" @click="openCreate">
           + Nova galeria
-        </el-button>
+        </button>
       </template>
     </PageHeader>
 
-    <div class="filter-bar">
-      <el-input
+    <FilterBar>
+      <label class="visually-hidden" for="galerias-search">Buscar galerias</label>
+      <input
+        id="galerias-search"
         v-model="search"
-        placeholder="Buscar nome ou endereço..."
-        clearable
-        prefix-icon="Search"
+        name="q"
+        class="form-control"
         style="max-width: 280px"
+        placeholder="Buscar nome ou endereço…"
+        autocomplete="off"
         @input="load"
       />
-      <el-radio-group v-model="filtroAberta" @change="load">
-        <el-radio-button label="">Todas</el-radio-button>
-        <el-radio-button label="true">Abertas</el-radio-button>
-        <el-radio-button label="false">Fechadas</el-radio-button>
-      </el-radio-group>
-    </div>
+      <FilterButtonGroup v-model="filtroAberta" :options="OPCOES_FILTRO_GALERIA_ABERTA" small @change="load" />
+    </FilterBar>
 
-    <div class="galeria-list">
-      <MotionReveal
-        v-for="(g, i) in galerias"
-        :key="g.id"
-        :delay="60 + i * 55"
-        :y="14"
-        tag="article"
-        klass="galeria-row hover-lift"
-        @click="$router.push(`/galerias/${g.id}`)"
-      >
-        <div class="galeria-icon">{{ g.nome.charAt(0) }}</div>
-        <div class="galeria-info">
-          <div class="galeria-top">
-            <h3>{{ g.nome }}</h3>
-            <el-tag :type="g.aberta ? 'success' : 'info'" size="small" effect="plain">
+    <div class="list-group list-group-flush">
+      <MotionReveal v-for="(g, i) in galerias" :key="g.id" :delay="40 + i * 45" :y="12" tag="div">
+        <ListItemLink :letter="g.nome.charAt(0)" @click="$router.push(`/galerias/${g.id}`)">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <strong>{{ g.nome }}</strong>
+            <span class="badge" :class="g.aberta ? 'text-bg-success' : 'text-bg-secondary'">
               {{ g.aberta ? 'Aberta' : 'Fechada' }}
-            </el-tag>
+            </span>
           </div>
-          <p class="galeria-end">
-            <MapPin :size="13" stroke-width="2" />
-            {{ g.endereco }}
-          </p>
-          <p class="galeria-desc">{{ g.descricao }}</p>
-        </div>
-        <ChevronRight :size="22" stroke-width="2" class="galeria-arrow" />
+          <small class="text-success d-flex align-items-center gap-1">
+            <AppIcon name="MapPin" :size="14" decorative /> {{ g.endereco }}
+          </small>
+          <div class="text-muted small text-truncate">{{ g.descricao }}</div>
+        </ListItemLink>
       </MotionReveal>
     </div>
 
-    <el-empty v-if="!loading && !galerias.length" description="Nenhuma galeria encontrada" />
+    <EmptyState v-if="!loading && !galerias.length" message="Nenhuma galeria encontrada" />
 
-    <el-dialog v-model="showForm" title="Nova galeria" width="480px" @closed="resetForm">
-      <el-form label-position="top">
-        <el-form-item label="Nome" required>
-          <el-input v-model="form.nome" />
-        </el-form-item>
-        <el-form-item label="Endereço" required>
-          <el-input v-model="form.endereco" />
-        </el-form-item>
-        <el-form-item label="Descrição">
-          <el-input v-model="form.descricao" type="textarea" rows="3" />
-        </el-form-item>
-        <el-form-item label="Status">
-          <el-switch v-model="form.aberta" active-text="Aberta" inactive-text="Fechada" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showForm = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="salvar">Criar galeria</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <FormModal v-model="showForm" title="Nova galeria" save-label="Criar galeria" :saving="saving" @save="salvar" @hidden="resetForm">
+      <FormField label="Nome" required :error="formErrors.nome">
+        <template #default="{ inputId, invalid, describedBy }">
+          <input
+            :id="inputId"
+            v-model="form.nome"
+            name="nome"
+            class="form-control"
+            :class="{ 'is-invalid': invalid }"
+            autocomplete="organization"
+            :aria-invalid="invalid ? 'true' : undefined"
+            :aria-describedby="describedBy"
+          />
+        </template>
+      </FormField>
+      <FormField label="Endereço" required :error="formErrors.endereco">
+        <template #default="{ inputId, invalid, describedBy }">
+          <input
+            :id="inputId"
+            v-model="form.endereco"
+            name="endereco"
+            class="form-control"
+            :class="{ 'is-invalid': invalid }"
+            autocomplete="street-address"
+            :aria-invalid="invalid ? 'true' : undefined"
+            :aria-describedby="describedBy"
+          />
+        </template>
+      </FormField>
+      <FormField label="Descrição">
+        <template #default="{ inputId, describedBy }">
+          <textarea :id="inputId" v-model="form.descricao" name="descricao" class="form-control" rows="3" :aria-describedby="describedBy" />
+        </template>
+      </FormField>
+      <div class="form-check form-switch">
+        <input id="galeria-aberta" v-model="form.aberta" name="aberta" class="form-check-input" type="checkbox" />
+        <label class="form-check-label" for="galeria-aberta">Galeria aberta ao público</label>
+      </div>
+    </FormModal>
+  </AppSpinner>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Building2, ChevronRight, MapPin } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import AppIcon from '@/components/AppIcon.vue'
+import AppSpinner from '@/components/AppSpinner.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FilterBar from '@/components/FilterBar.vue'
+import FilterButtonGroup from '@/components/FilterButtonGroup.vue'
+import FormField from '@/components/FormField.vue'
+import FormModal from '@/components/FormModal.vue'
+import ListItemLink from '@/components/ListItemLink.vue'
 import MotionReveal from '@/components/MotionReveal.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { apiError, createGaleria, fetchGalerias } from '@/api/services'
+import { useFieldErrors } from '@/composables/useFieldErrors'
+import { useQuerySync } from '@/composables/useQuerySync'
+import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import { OPCOES_FILTRO_GALERIA_ABERTA, criarFormularioVazioNovaGaleria } from '@/constants/galeria'
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
+const toast = useToast()
+const { errors: formErrors, clear: clearFormErrors, set: setFormError, focusFirstError } = useFieldErrors()
 const loading = ref(true)
 const saving = ref(false)
 const galerias = ref([])
@@ -104,21 +118,26 @@ const allGalerias = ref([])
 const search = ref('')
 const filtroAberta = ref('')
 const showForm = ref(false)
-const form = ref(emptyForm())
+const form = ref(criarFormularioVazioNovaGaleria())
 
-function emptyForm() {
-  return { nome: '', endereco: '', descricao: '', aberta: true }
-}
+useQuerySync(route, router, [
+  { ref: search, key: 'q' },
+  { ref: filtroAberta, key: 'aberta' },
+])
+
+watch([search, filtroAberta], () => load())
 
 const abertas = computed(() => allGalerias.value.filter((g) => g.aberta).length)
 
 function openCreate() {
-  form.value = emptyForm()
+  form.value = criarFormularioVazioNovaGaleria()
+  clearFormErrors()
   showForm.value = true
 }
 
 function resetForm() {
-  form.value = emptyForm()
+  form.value = criarFormularioVazioNovaGaleria()
+  clearFormErrors()
 }
 
 async function load() {
@@ -140,18 +159,21 @@ async function load() {
 }
 
 async function salvar() {
-  if (!form.value.nome.trim() || !form.value.endereco.trim()) {
-    ElMessage.warning('Preencha nome e endereço.')
+  clearFormErrors()
+  if (!form.value.nome.trim()) setFormError('nome', 'Informe o nome da galeria.')
+  if (!form.value.endereco.trim()) setFormError('endereco', 'Informe o endereço.')
+  if (Object.keys(formErrors).length) {
+    focusFirstError()
     return
   }
   saving.value = true
   try {
     const g = await createGaleria(form.value)
-    ElMessage.success('Galeria criada!')
+    toast.success('Galeria criada!')
     showForm.value = false
     router.push(`/galerias/${g.id}`)
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }
@@ -159,82 +181,3 @@ async function salvar() {
 
 onMounted(load)
 </script>
-
-<style scoped>
-.galeria-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.galeria-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.galeria-row:hover {
-  border-color: #10b981;
-  box-shadow: var(--shadow);
-}
-
-.galeria-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: #ecfdf5;
-  color: #059669;
-  font-weight: 700;
-  font-size: 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.galeria-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.galeria-top {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.galeria-top h3 {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.galeria-end {
-  font-size: 0.82rem;
-  color: #059669;
-  margin-top: 0.2rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.galeria-desc {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.galeria-arrow {
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-</style>

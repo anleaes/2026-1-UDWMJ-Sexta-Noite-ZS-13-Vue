@@ -64,6 +64,18 @@ const router = createRouter({
           name: 'perfil',
           component: () => import('@/views/PerfilView.vue'),
         },
+        {
+          path: 'categorias',
+          name: 'categorias',
+          component: () => import('@/views/CategoriasView.vue'),
+          meta: { requiresStaff: true },
+        },
+        {
+          path: 'admin',
+          name: 'admin',
+          component: () => import('@/views/AdminView.vue'),
+          meta: { requiresAdmin: true },
+        },
       ],
     },
     {
@@ -80,6 +92,8 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const guestOnly = to.matched.some((record) => record.meta.guest)
+  const requiresStaff = to.matched.some((record) => record.meta.requiresStaff)
+  const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
 
   if (requiresAuth && !auth.isLoggedIn) {
     return {
@@ -89,6 +103,14 @@ router.beforeEach((to) => {
   }
 
   if (guestOnly && auth.isLoggedIn) {
+    return { name: 'home' }
+  }
+
+  if (requiresStaff && !auth.canStaff) {
+    return { name: 'home' }
+  }
+
+  if (requiresAdmin && !auth.isAdmin) {
     return { name: 'home' }
   }
 })

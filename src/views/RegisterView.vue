@@ -1,76 +1,51 @@
 <template>
-  <div class="register-page">
-    <el-card class="register-card" shadow="never">
-      <h1>Criar conta</h1>
-      <p class="sub">Cadastro público para visitantes do museu</p>
-
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister">
-        <div class="grid-2">
-          <el-form-item label="Nome" prop="first_name">
-            <el-input v-model="form.first_name" />
-          </el-form-item>
-          <el-form-item label="Sobrenome" prop="last_name">
-            <el-input v-model="form.last_name" />
-          </el-form-item>
+  <div class="py-4">
+    <AuthCard title="Criar conta" subtitle="Cadastro público para visitantes">
+      <form novalidate @submit.prevent="handleRegister">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <FormInput v-model="form.first_name" label="Nome" name="first_name" autocomplete="given-name" required :error="errors.first_name" inline />
+          </div>
+          <div class="col-md-6">
+            <FormInput v-model="form.last_name" label="Sobrenome" name="last_name" autocomplete="family-name" required :error="errors.last_name" inline />
+          </div>
         </div>
-
-        <el-form-item label="Usuário (login)" prop="username">
-          <el-input v-model="form.username" placeholder="maria.silva" />
-        </el-form-item>
-
-        <el-form-item label="E-mail" prop="email">
-          <el-input v-model="form.email" type="email" />
-        </el-form-item>
-
-        <el-form-item label="CPF" prop="cpf">
-          <el-input v-model="form.cpf" placeholder="12345678901" maxlength="14" />
-        </el-form-item>
-
-        <el-form-item label="Telefone" prop="telefone">
-          <el-input v-model="form.telefone" placeholder="(11) 99999-9999" />
-        </el-form-item>
-
-        <el-form-item label="Data de nascimento">
-          <el-date-picker
-            v-model="form.data_nascimento"
-            type="date"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-
-        <div class="grid-2">
-          <el-form-item label="Senha" prop="password">
-            <el-input v-model="form.password" type="password" show-password />
-          </el-form-item>
-          <el-form-item label="Confirmar senha" prop="password_confirm">
-            <el-input v-model="form.password_confirm" type="password" show-password />
-          </el-form-item>
+        <FormInput v-model="form.username" label="Usuário" name="username" autocomplete="username" :spellcheck="false" required :error="errors.username" />
+        <FormInput v-model="form.email" label="E-mail" name="email" type="email" autocomplete="email" inputmode="email" required :error="errors.email" />
+        <FormInput v-model="form.cpf" label="CPF" name="cpf" autocomplete="off" inputmode="numeric" :spellcheck="false" maxlength="14" required :error="errors.cpf" />
+        <FormInput v-model="form.telefone" label="Telefone" name="telefone" type="tel" autocomplete="tel" inputmode="tel" />
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <FormInput v-model="form.password" label="Senha" name="password" type="password" autocomplete="new-password" required :error="errors.password" inline />
+          </div>
+          <div class="col-md-6">
+            <FormInput v-model="form.password_confirm" label="Confirmar senha" name="password_confirm" type="password" autocomplete="new-password" required :error="errors.password_confirm" inline />
+          </div>
         </div>
-
-        <el-button type="primary" native-type="submit" :loading="loading" style="width: 100%">
-          Cadastrar
-        </el-button>
-      </el-form>
-
-      <p class="login-link">
-        Já tem conta?
-        <router-link :to="{ name: 'login' }">Entrar</router-link>
-      </p>
-    </el-card>
+        <SubmitButton label="Cadastrar" loading-label="Cadastrando…" :loading="loading" block type="submit" />
+      </form>
+      <template #footer>
+        Já tem conta? <router-link :to="{ name: 'login' }">Entrar</router-link>
+      </template>
+    </AuthCard>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import AuthCard from '@/components/AuthCard.vue'
+import FormInput from '@/components/FormInput.vue'
+import SubmitButton from '@/components/SubmitButton.vue'
 import { apiError } from '@/api/services'
+import { useFieldErrors } from '@/composables/useFieldErrors'
+import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
-const formRef = ref()
+const toast = useToast()
+const { errors, clear, set, focusFirstError } = useFieldErrors()
 const loading = ref(false)
 
 const form = reactive({
@@ -85,76 +60,30 @@ const form = reactive({
   data_nascimento: null,
 })
 
-const rules = {
-  username: [{ required: true, message: 'Informe o usuário' }],
-  first_name: [{ required: true, message: 'Informe o nome' }],
-  last_name: [{ required: true, message: 'Informe o sobrenome' }],
-  email: [{ required: true, type: 'email', message: 'E-mail inválido' }],
-  cpf: [{ required: true, min: 11, message: 'CPF obrigatório' }],
-  password: [{ required: true, min: 6, message: 'Mínimo 6 caracteres' }],
-  password_confirm: [{ required: true, message: 'Confirme a senha' }],
-}
-
 async function handleRegister() {
-  await formRef.value.validate()
+  clear()
+  if (!form.first_name.trim()) set('first_name', 'Informe o nome.')
+  if (!form.last_name.trim()) set('last_name', 'Informe o sobrenome.')
+  if (!form.username.trim()) set('username', 'Informe o usuário.')
+  if (!form.email.trim()) set('email', 'Informe o e-mail.')
+  if (!form.cpf.trim()) set('cpf', 'Informe o CPF.')
+  if (!form.password) set('password', 'Informe a senha.')
+  if (form.password !== form.password_confirm) set('password_confirm', 'As senhas não coincidem.')
+  if (Object.keys(errors).length) {
+    focusFirstError()
+    return
+  }
   loading.value = true
   try {
     const payload = { ...form }
     if (!payload.data_nascimento) delete payload.data_nascimento
     await auth.register(payload)
-    ElMessage.success('Conta criada com sucesso!')
+    toast.success('Conta criada!')
     router.push({ name: 'home' })
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     loading.value = false
   }
 }
 </script>
-
-<style scoped>
-.register-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 2rem 1rem;
-  background: var(--bg);
-}
-
-.register-card {
-  width: 100%;
-  max-width: 520px;
-}
-
-.register-card h1 {
-  font-size: 1.35rem;
-  margin-bottom: 0.25rem;
-}
-
-.sub {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  margin-bottom: 1.25rem;
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 1rem;
-}
-
-.login-link {
-  text-align: center;
-  margin-top: 1.25rem;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-@media (max-width: 520px) {
-  .grid-2 {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-}
-</style>

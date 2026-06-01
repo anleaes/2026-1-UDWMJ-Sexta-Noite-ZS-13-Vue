@@ -1,117 +1,98 @@
 <template>
-  <div v-loading="loading">
-    <PageHeader
-      theme="obras"
-      title="Obras de Arte"
-      subtitle="Acervo catalogado por categoria e técnica"
-    >
-      <template #icon>
-        <Palette :size="32" stroke-width="1.5" />
-      </template>
-      <template v-if="auth.canManage" #extra>
-        <el-button type="primary" @click="openCreate">+ Nova obra</el-button>
+  <AppSpinner :show="loading">
+    <PageHeader theme="obras" title="Obras de Arte" subtitle="Acervo catalogado">
+      <template #icon><AppIcon name="Palette" :size="28" decorative /></template>
+      <template v-if="auth.canStaff" #extra>
+        <button type="button" class="btn btn-primary btn-sm" @click="openCreate">+ Nova obra</button>
       </template>
     </PageHeader>
 
-    <div class="filter-bar">
-      <el-input v-model="search" placeholder="Buscar título ou técnica..." clearable style="max-width: 260px" @keyup.enter="load" />
-      <el-select v-model="categoriaId" clearable placeholder="Categoria" style="width: 160px" @change="load">
-        <el-option v-for="c in categorias" :key="c.id" :label="c.nome" :value="c.id" />
-      </el-select>
-      <el-button type="primary" @click="load">Buscar</el-button>
-    </div>
+    <FilterBar>
+      <input v-model="search" class="form-control" style="max-width: 240px" placeholder="Buscar título ou técnica…" autocomplete="off" @keyup.enter="load" />
+      <select v-model="categoriaId" class="form-select" style="max-width: 180px" @change="load">
+        <option :value="null">Todas categorias</option>
+        <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nome }}</option>
+      </select>
+      <SubmitButton label="Buscar" @click="load" />
+    </FilterBar>
 
-    <div class="obra-grid">
-      <MotionReveal
-        v-for="(obra, i) in obras"
-        :key="obra.id"
-        :delay="50 + i * 50"
-        :y="16"
-        tag="article"
-        klass="obra-card hover-lift"
-        @click="$router.push(`/obras/${obra.id}`)"
-      >
-        <div class="obra-thumb">{{ obra.titulo.charAt(0) }}</div>
-        <div class="obra-body">
-          <h3>{{ obra.titulo }}</h3>
-          <p class="obra-meta">{{ obra.tecnica }} · {{ obra.ano_criacao }}</p>
-          <p class="obra-valor">{{ formatMoney(obra.valor_estimado) }}</p>
+    <div class="row g-3">
+      <div v-for="obra in obras" :key="obra.id" class="col-sm-6 col-lg-4">
+        <ObraCard
+          :titulo="obra.titulo"
+          :tecnica="obra.tecnica"
+          :ano="obra.ano_criacao"
+          :valor="obra.valor_estimado"
+          @click="$router.push(`/obras/${obra.id}`)"
+        />
+      </div>
+    </div>
+    <EmptyState v-if="!loading && !obras.length" message="Nenhuma obra encontrada" />
+
+    <FormModal v-model="showForm" title="Nova obra" size="lg" save-label="Criar" :saving="saving" @save="salvar" @hidden="resetForm">
+      <FormField label="Título" required>
+        <input v-model="form.titulo" class="form-control" />
+      </FormField>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <FormField label="Técnica" required inline>
+            <input v-model="form.tecnica" class="form-control" />
+          </FormField>
         </div>
-      </MotionReveal>
-    </div>
+        <div class="col-md-6">
+          <FormField label="Ano" inline>
+            <input v-model.number="form.ano_criacao" type="number" class="form-control" />
+          </FormField>
+        </div>
+      </div>
+      <FormField label="Valor (R$)">
+        <input v-model.number="form.valor_estimado" type="number" step="0.01" class="form-control" />
+      </FormField>
+      <FormField label="Categoria" required>
+        <div class="input-group">
+          <select v-model="form.categoria" class="form-select">
+            <option :value="null">Selecione</option>
+            <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nome }}</option>
+          </select>
+          <button type="button" class="btn btn-outline-secondary" @click="showCatForm = true">+ Cat.</button>
+        </div>
+      </FormField>
+    </FormModal>
 
-    <el-empty v-if="!loading && !obras.length" description="Nenhuma obra encontrada" />
-
-    <el-dialog v-model="showForm" title="Nova obra de arte" width="520px" @closed="resetForm">
-      <el-form label-position="top">
-        <el-form-item label="Título" required>
-          <el-input v-model="form.titulo" />
-        </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="Técnica" required>
-              <el-input v-model="form.tecnica" placeholder="Óleo sobre tela" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="Ano" required>
-              <el-input-number v-model="form.ano_criacao" :min="1000" :max="2100" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="Valor estimado (R$)" required>
-          <el-input-number v-model="form.valor_estimado" :min="0" :precision="2" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Categoria" required>
-          <div class="categoria-row">
-            <el-select v-model="form.categoria" placeholder="Selecione" style="flex: 1">
-              <el-option v-for="c in categorias" :key="c.id" :label="c.nome" :value="c.id" />
-            </el-select>
-            <el-button @click="showCatForm = true">+ Categoria</el-button>
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showForm = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="salvar">Criar obra</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="showCatForm" title="Nova categoria" width="400px">
-      <el-form label-position="top">
-        <el-form-item label="Nome" required>
-          <el-input v-model="catForm.nome" />
-        </el-form-item>
-        <el-form-item label="Descrição">
-          <el-input v-model="catForm.descricao" type="textarea" rows="2" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCatForm = false">Cancelar</el-button>
-        <el-button type="primary" :loading="savingCat" @click="salvarCategoria">Criar</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <FormModal v-model="showCatForm" title="Nova categoria" save-label="Criar" :saving="savingCat" @save="salvarCategoria">
+      <FormField label="Nome">
+        <input v-model="catForm.nome" class="form-control" />
+      </FormField>
+      <FormField label="Descrição">
+        <textarea v-model="catForm.descricao" class="form-control" rows="2" />
+      </FormField>
+    </FormModal>
+  </AppSpinner>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Palette } from 'lucide-vue-next'
-import MotionReveal from '@/components/MotionReveal.vue'
+import AppIcon from '@/components/AppIcon.vue'
+import AppSpinner from '@/components/AppSpinner.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FilterBar from '@/components/FilterBar.vue'
+import FormField from '@/components/FormField.vue'
+import FormModal from '@/components/FormModal.vue'
+import ObraCard from '@/components/ObraCard.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import {
-  apiError,
-  createCategoria,
-  createObra,
-  fetchCategorias,
-  fetchObras,
-} from '@/api/services'
+import SubmitButton from '@/components/SubmitButton.vue'
+import { apiError, createCategoria, createObra, fetchCategorias, fetchObras } from '@/api/services'
+import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import {
+  criarFormularioVazioNovaCategoria,
+  criarFormularioVazioNovaObra,
+} from '@/constants/obra'
 
 const auth = useAuthStore()
 const router = useRouter()
+const toast = useToast()
 const loading = ref(true)
 const saving = ref(false)
 const savingCat = ref(false)
@@ -121,34 +102,16 @@ const search = ref('')
 const categoriaId = ref(null)
 const showForm = ref(false)
 const showCatForm = ref(false)
-const form = ref(emptyForm())
-const catForm = ref({ nome: '', descricao: '' })
-
-function emptyForm() {
-  return {
-    titulo: '',
-    tecnica: '',
-    ano_criacao: new Date().getFullYear(),
-    valor_estimado: 0,
-    categoria: null,
-  }
-}
-
-function formatMoney(v) {
-  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
+const form = ref(criarFormularioVazioNovaObra())
+const catForm = ref(criarFormularioVazioNovaCategoria())
 
 function openCreate() {
-  form.value = emptyForm()
+  form.value = criarFormularioVazioNovaObra()
   showForm.value = true
 }
 
 function resetForm() {
-  form.value = emptyForm()
-}
-
-async function loadCategorias() {
-  categorias.value = await fetchCategorias()
+  form.value = criarFormularioVazioNovaObra()
 }
 
 async function load() {
@@ -165,19 +128,19 @@ async function load() {
 
 async function salvarCategoria() {
   if (!catForm.value.nome.trim()) {
-    ElMessage.warning('Informe o nome da categoria.')
+    toast.warning('Informe o nome da categoria.')
     return
   }
   savingCat.value = true
   try {
     const cat = await createCategoria(catForm.value)
-    await loadCategorias()
+    categorias.value = await fetchCategorias()
     form.value.categoria = cat.id
     showCatForm.value = false
-    catForm.value = { nome: '', descricao: '' }
-    ElMessage.success('Categoria criada!')
+    catForm.value = criarFormularioVazioNovaCategoria()
+    toast.success('Categoria criada!')
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     savingCat.value = false
   }
@@ -185,90 +148,24 @@ async function salvarCategoria() {
 
 async function salvar() {
   if (!form.value.titulo.trim() || !form.value.tecnica.trim() || !form.value.categoria) {
-    ElMessage.warning('Preencha título, técnica e categoria.')
+    toast.warning('Preencha título, técnica e categoria.')
     return
   }
   saving.value = true
   try {
-    const payload = {
-      ...form.value,
-      valor_estimado: String(form.value.valor_estimado),
-    }
-    const obra = await createObra(payload)
-    ElMessage.success('Obra criada!')
+    const obra = await createObra({ ...form.value, valor_estimado: String(form.value.valor_estimado) })
+    toast.success('Obra criada!')
     showForm.value = false
     router.push(`/obras/${obra.id}`)
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }
 }
 
 onMounted(async () => {
-  await loadCategorias()
+  categorias.value = await fetchCategorias()
   await load()
 })
 </script>
-
-<style scoped>
-.categoria-row {
-  display: flex;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.obra-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.85rem;
-}
-
-.obra-card {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  cursor: pointer;
-  transition: box-shadow 0.15s, transform 0.15s;
-}
-
-.obra-card:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
-}
-
-.obra-thumb {
-  height: 88px;
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #b45309;
-}
-
-.obra-body {
-  padding: 0.85rem 1rem 1rem;
-}
-
-.obra-body h3 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  line-height: 1.3;
-}
-
-.obra-meta {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.obra-valor {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #d97706;
-  margin-top: 0.4rem;
-}
-</style>

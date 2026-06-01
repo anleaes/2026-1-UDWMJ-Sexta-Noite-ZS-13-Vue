@@ -1,219 +1,130 @@
 <template>
-  <div v-loading="loading">
+  <AppSpinner :show="loading">
     <DetailBanner
       v-if="exposicao"
       variant="exposicao"
       :title="exposicao.titulo"
       :meta="`${formatDate(exposicao.data_inicio)} — ${formatDate(exposicao.data_fim)}`"
-      :badge="statusLabel(exposicao.status)"
+      :badge="exposicaoStatusLabel(exposicao.status)"
     >
-      <template v-if="auth.canManage" #actions>
-        <el-select v-model="novoStatus" size="small" style="width: 170px" @change="alterarStatus">
-          <el-option label="Planejada" value="planejada" />
-          <el-option label="Em andamento" value="em_andamento" />
-          <el-option label="Encerrada" value="encerrada" />
-        </el-select>
-        <el-button size="small" @click="showEdit = true">Editar</el-button>
-        <el-button size="small" type="danger" plain @click="confirmarExclusao">Excluir</el-button>
+      <template v-if="auth.canStaff" #actions>
+        <select v-model="novoStatus" class="form-select form-select-sm d-inline-block w-auto me-2" @change="alterarStatus">
+          <option value="planejada">Planejada</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="encerrada">Encerrada</option>
+        </select>
+        <button type="button" class="btn btn-light btn-sm" @click="showEdit = true">Editar</button>
+        <button type="button" class="btn btn-outline-light btn-sm" @click="confirmarExclusao">Excluir</button>
       </template>
     </DetailBanner>
 
-    <div v-if="exposicao" class="split-layout">
-      <div>
-        <div class="content-panel" style="margin-bottom: 1rem">
-          <p class="desc">{{ exposicao.descricao }}</p>
+    <div v-if="exposicao" class="row g-4">
+      <div class="col-lg-8">
+        <div class="card card-body mb-3"><p class="text-muted mb-0">{{ exposicao.descricao }}</p></div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">Obras ({{ obrasExposicao.length }})</h3>
+          <button v-if="auth.canStaff" type="button" class="btn btn-sm btn-primary" @click="showAddObra = true">+ Obra</button>
         </div>
-
-        <div class="section-head">
-          <h3 class="section-title">Obras expostas ({{ obrasExposicao.length }})</h3>
-          <el-button v-if="auth.canManage" type="primary" size="small" @click="showAddObra = true">
-            + Adicionar obra
-          </el-button>
-        </div>
-        <div class="obra-exp-list">
+        <div class="list-group">
           <div
             v-for="o in obrasExposicao"
             :key="o.link_id"
-            class="obra-exp-row"
+            class="list-group-item d-flex justify-content-between align-items-center gap-2"
           >
-            <div class="obra-exp-main" @click="goObra(o)">
-              <div>
-                <strong>{{ o.titulo }}</strong>
-                <span>{{ o.tecnica }}</span>
-              </div>
-              <div class="obra-exp-meta">
-                <span>Sala {{ o.posicao_sala }}</span>
-                <el-tag size="small" effect="plain">{{ o.status_conservacao }}</el-tag>
-              </div>
-            </div>
-            <el-button
-              v-if="auth.canManage"
-              type="danger"
-              link
-              size="small"
-              @click.stop="removerObra(o)"
+            <button type="button" class="btn btn-link text-start flex-grow-1 min-w-0 p-0 text-decoration-none" @click="goObra(o)">
+              <strong class="text-body">{{ o.titulo }}</strong>
+              <div class="small text-muted text-truncate">{{ o.tecnica }} · Sala {{ o.posicao_sala }} · {{ o.status_conservacao }}</div>
+            </button>
+            <button
+              v-if="auth.canStaff"
+              type="button"
+              class="btn btn-sm btn-outline-danger flex-shrink-0"
+              aria-label="Remover obra da exposição"
+              @click="removerObra(o)"
             >
               Remover
-            </el-button>
+            </button>
           </div>
         </div>
-        <el-empty v-if="!obrasExposicao.length" description="Nenhuma obra nesta exposição" />
+        <EmptyState v-if="!obrasExposicao.length" message="Nenhuma obra nesta exposição" icon="Image" />
       </div>
 
-      <aside v-if="auth.user?.role === 'visitante'" class="sidebar-panel visitante-panel">
-        <h3>🎟️ Área do visitante</h3>
-        <p class="panel-hint">Ingresso, reserva e avaliação</p>
-
-        <el-button type="primary" style="width: 100%; margin-bottom: 0.5rem" @click="showIngresso = true">
-          Comprar ingressos
-        </el-button>
-        <el-button :loading="actionLoading" style="width: 100%; margin-bottom: 1rem" @click="showReserva = true">
-          Reservar visita
-        </el-button>
-
-        <el-divider />
-
-        <el-form label-position="top">
-          <el-form-item label="Sua nota">
-            <el-rate v-model="nota" :max="5" />
-          </el-form-item>
-          <el-form-item label="Comentário">
-            <el-input v-model="comentario" type="textarea" rows="2" />
-          </el-form-item>
-          <el-button type="success" :loading="actionLoading" style="width: 100%" @click="avaliar">
-            Enviar avaliação
-          </el-button>
-        </el-form>
-      </aside>
-
-      <aside v-else-if="auth.canManage" class="sidebar-panel func-panel">
-        <h3>👔 Gestão da exposição</h3>
-        <p class="panel-hint">
-          Cadastre obras, altere o status e edite os dados da mostra. Como funcionário ou administrador,
-          você gerencia todo o ciclo da exposição.
-        </p>
-        <ul class="staff-tips">
-          <li>Adicione obras do acervo com posição na sala</li>
-          <li>Altere o status para "Em andamento" ao abrir</li>
-          <li>Encerre quando a mostra terminar</li>
-        </ul>
-      </aside>
+      <div class="col-lg-4">
+        <div v-if="auth.isVisitante" class="card card-body">
+          <h3 class="h6 d-flex align-items-center gap-1"><AppIcon name="Ticket" :size="18" decorative /> Visitante</h3>
+          <button type="button" class="btn btn-primary w-100 mb-2" @click="showIngresso = true">Comprar ingressos</button>
+          <button type="button" class="btn btn-outline-primary w-100 mb-3" :disabled="actionLoading" @click="showReserva = true">Reservar visita</button>
+          <hr />
+          <label class="form-label">Nota (1-5)</label>
+          <input v-model.number="notaAvaliacao" type="range" min="1" max="5" class="form-range" />
+          <label class="form-label">Comentário</label>
+          <textarea v-model="comentarioAvaliacao" class="form-control mb-2" rows="2" />
+          <button type="button" class="btn btn-success w-100" :disabled="actionLoading" @click="avaliar">Enviar avaliação</button>
+        </div>
+        <div v-else-if="auth.canStaff" class="card card-body bg-success bg-opacity-10">
+          <h3 class="h6">Gestão</h3>
+          <ul class="small text-muted mb-0">
+            <li>Adicione obras com posição na sala</li>
+            <li>Altere o status ao abrir/encerrar</li>
+          </ul>
+        </div>
+      </div>
     </div>
 
-    <!-- Editar exposição -->
-    <el-dialog v-model="showEdit" title="Editar exposição" width="520px">
-      <el-form label-position="top">
-        <el-form-item label="Título" required>
-          <el-input v-model="editForm.titulo" />
-        </el-form-item>
-        <el-form-item label="Galeria" required>
-          <el-select v-model="editForm.galeria" filterable style="width: 100%">
-            <el-option v-for="g in galerias" :key="g.id" :label="g.nome" :value="g.id" />
-          </el-select>
-        </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="Data início">
-              <el-date-picker v-model="editForm.data_inicio" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="Data fim">
-              <el-date-picker v-model="editForm.data_fim" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="Descrição">
-          <el-input v-model="editForm.descricao" type="textarea" rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showEdit = false">Cancelar</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="salvarEdicao">Salvar</el-button>
-      </template>
-    </el-dialog>
+    <FormModal v-model="showEdit" title="Editar exposição" size="lg" :saving="actionLoading" @save="salvarEdicao">
+      <FormField label="Título"><input v-model="editForm.titulo" class="form-control" /></FormField>
+      <FormField label="Galeria">
+        <select v-model="editForm.galeria" class="form-select"><option v-for="g in galerias" :key="g.id" :value="g.id">{{ g.nome }}</option></select>
+      </FormField>
+      <div class="row g-2 mb-3">
+        <div class="col-6"><FormField label="Início" inline><input v-model="editForm.data_inicio" type="date" class="form-control" /></FormField></div>
+        <div class="col-6"><FormField label="Fim" inline><input v-model="editForm.data_fim" type="date" class="form-control" /></FormField></div>
+      </div>
+      <FormField label="Descrição"><textarea v-model="editForm.descricao" class="form-control" rows="3" /></FormField>
+    </FormModal>
 
-    <!-- Adicionar obra -->
-    <el-dialog v-model="showAddObra" title="Adicionar obra à exposição" width="520px">
-      <el-form label-position="top">
-        <el-form-item label="Obra" required>
-          <el-select v-model="obraForm.obra" filterable placeholder="Selecione" style="width: 100%">
-            <el-option v-for="o in obrasDisponiveis" :key="o.id" :label="o.titulo" :value="o.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Data de entrada" required>
-          <el-date-picker v-model="obraForm.data_entrada" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Posição na sala" required>
-          <el-input v-model="obraForm.posicao_sala" placeholder="Sala 2 - Parede norte" />
-        </el-form-item>
-        <el-form-item label="Status de conservação" required>
-          <el-input v-model="obraForm.status_conservacao" placeholder="Ótimo, Bom, Regular..." />
-        </el-form-item>
-        <el-form-item label="Iluminação especial">
-          <el-input v-model="obraForm.iluminacao_especial" />
-        </el-form-item>
-        <el-form-item label="Estilo da obra">
-          <el-input v-model="obraForm.estilo_obra" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showAddObra = false">Cancelar</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="adicionarObra">Adicionar</el-button>
-      </template>
-    </el-dialog>
+    <FormModal v-model="showAddObra" title="Adicionar obra" size="lg" save-label="Adicionar" :saving="actionLoading" @save="adicionarObra">
+      <FormField label="Obra">
+        <select v-model="formularioObraNaExposicao.obra" class="form-select"><option v-for="o in obrasDisponiveis" :key="o.id" :value="o.id">{{ o.titulo }}</option></select>
+      </FormField>
+      <FormField label="Data entrada"><input v-model="formularioObraNaExposicao.data_entrada" type="date" class="form-control" /></FormField>
+      <FormField label="Posição sala"><input v-model="formularioObraNaExposicao.posicao_sala" class="form-control" /></FormField>
+      <FormField label="Conservação"><input v-model="formularioObraNaExposicao.status_conservacao" class="form-control" /></FormField>
+    </FormModal>
 
-    <el-dialog v-model="showIngresso" title="Comprar ingressos" width="400px">
-      <el-form label-position="top">
-        <el-form-item label="Quantidade de ingressos">
-          <el-input-number v-model="ingressoQtd" :min="1" :max="20" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Tipo">
-          <el-select v-model="ingressoTipo" style="width: 100%">
-            <el-option label="Inteira — R$ 60" value="inteira" />
-            <el-option label="Meia — R$ 30" value="meia" />
-            <el-option label="Cortesia — R$ 0" value="cortesia" />
-          </el-select>
-        </el-form-item>
-        <p class="total-line">
-          Total: <strong>{{ formatMoney(ingressoQtd * INGRESSO_PRECOS[ingressoTipo]) }}</strong>
-        </p>
-        <p class="form-hint">
-          Cada ingresso dá acesso à exposição inteira (todas as obras expostas). O sistema gera um bilhete por unidade.
-        </p>
-      </el-form>
-      <template #footer>
-        <el-button @click="showIngresso = false">Cancelar</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="comprar">Confirmar compra</el-button>
-      </template>
-    </el-dialog>
+    <FormModal v-model="showIngresso" title="Comprar ingressos" save-label="Confirmar" :saving="actionLoading" @save="comprar">
+      <FormField label="Quantidade"><input v-model.number="quantidadeIngressosCompra" type="number" :min="QUANTIDADE_MINIMA_INGRESSOS" :max="QUANTIDADE_MAXIMA_INGRESSOS" class="form-control" /></FormField>
+      <FormField label="Tipo">
+        <select v-model="tipoIngressoSelecionado" class="form-select">
+          <option v-for="opcao in OPCOES_TIPO_INGRESSO_COM_PRECO" :key="opcao.valor" :value="opcao.valor">
+            {{ opcao.rotulo }}
+          </option>
+        </select>
+      </FormField>
+      <p>Total: <strong>{{ formatMoney(quantidadeIngressosCompra * PRECOS_INGRESSO_POR_TIPO[tipoIngressoSelecionado]) }}</strong></p>
+    </FormModal>
 
-    <el-dialog v-model="showReserva" title="Realizar reserva" width="360px">
-      <el-form label-position="top">
-        <el-form-item label="Quantidade de pessoas">
-          <el-input-number v-model="reservaQtd" :min="1" :max="20" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Data">
-          <el-date-picker v-model="reservaData" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showReserva = false">Cancelar</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="reservar">Confirmar</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <FormModal v-model="showReserva" title="Reservar visita" save-label="Confirmar" :saving="actionLoading" @save="reservar">
+      <FormField label="Pessoas"><input v-model.number="quantidadePessoasReserva" type="number" min="1" class="form-control" /></FormField>
+      <FormField label="Data"><input v-model="dataReservaSelecionada" type="date" class="form-control" /></FormField>
+    </FormModal>
+  </AppSpinner>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { useToast, confirmDialog } from '@/composables/useToast'
+import AppIcon from '@/components/AppIcon.vue'
+import AppSpinner from '@/components/AppSpinner.vue'
 import DetailBanner from '@/components/DetailBanner.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FormField from '@/components/FormField.vue'
+import FormModal from '@/components/FormModal.vue'
+import { exposicaoStatusLabel, formatDate, formatMoney } from '@/utils/format'
 import {
   apiError,
   comprarIngressos,
-  INGRESSO_PRECOS,
   criarAvaliacao,
   criarReserva,
   deleteExposicao,
@@ -227,10 +138,26 @@ import {
   createExposicaoObra,
 } from '@/api/services'
 import { useAuthStore } from '@/stores/auth'
+import { criarFormularioVazioObraNaExposicao } from '@/constants/exposicao'
+import {
+  COMENTARIO_AVALIACAO_PADRAO,
+  DATA_RESERVA_PADRAO,
+  NOTA_AVALIACAO_PADRAO,
+  QUANTIDADE_INGRESSOS_PADRAO,
+  QUANTIDADE_PESSOAS_RESERVA_PADRAO,
+} from '@/constants/visitante'
+import {
+  OPCOES_TIPO_INGRESSO_COM_PRECO,
+  PRECOS_INGRESSO_POR_TIPO,
+  QUANTIDADE_MAXIMA_INGRESSOS,
+  QUANTIDADE_MINIMA_INGRESSOS,
+  TIPO_INGRESSO_PADRAO,
+} from '@/constants/ingresso'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 const loading = ref(true)
 const actionLoading = ref(false)
 const exposicao = ref(null)
@@ -238,77 +165,34 @@ const obrasExposicao = ref([])
 const galerias = ref([])
 const todasObras = ref([])
 const novoStatus = ref('')
-const nota = ref(5)
-const comentario = ref('Exposição excelente!')
+const notaAvaliacao = ref(NOTA_AVALIACAO_PADRAO)
+const comentarioAvaliacao = ref(COMENTARIO_AVALIACAO_PADRAO)
 const showReserva = ref(false)
 const showIngresso = ref(false)
 const showEdit = ref(false)
 const showAddObra = ref(false)
-const reservaQtd = ref(4)
-const ingressoQtd = ref(1)
-const ingressoTipo = ref('inteira')
-const reservaData = ref('2026-08-15')
+const quantidadePessoasReserva = ref(QUANTIDADE_PESSOAS_RESERVA_PADRAO)
+const quantidadeIngressosCompra = ref(QUANTIDADE_INGRESSOS_PADRAO)
+const tipoIngressoSelecionado = ref(TIPO_INGRESSO_PADRAO)
+const dataReservaSelecionada = ref(DATA_RESERVA_PADRAO)
 const editForm = ref({})
-const obraForm = ref(emptyObraForm())
-
-function emptyObraForm() {
-  return {
-    obra: null,
-    data_entrada: '',
-    posicao_sala: '',
-    status_conservacao: 'Ótimo',
-    iluminacao_especial: '',
-    estilo_obra: '',
-  }
-}
+const formularioObraNaExposicao = ref(criarFormularioVazioObraNaExposicao())
 
 const obrasDisponiveis = computed(() => {
   const ids = new Set(obrasExposicao.value.map((o) => o.obra_id))
   return todasObras.value.filter((o) => !ids.has(o.id))
 })
 
-const statusMap = {
-  planejada: 'Planejada',
-  em_andamento: 'Em andamento',
-  encerrada: 'Encerrada',
-}
+function goObra(row) { if (row.obra_id) router.push(`/obras/${row.obra_id}`) }
 
-function statusLabel(s) {
-  return statusMap[s] || s
-}
-
-function formatDate(d) {
-  const [y, m, day] = d.split('-')
-  return `${day}/${m}/${y}`
-}
-
-function formatMoney(v) {
-  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function goObra(row) {
-  if (row.obra_id) router.push(`/obras/${row.obra_id}`)
-}
-
-watch(showEdit, (open) => {
-  if (open && exposicao.value) {
-    editForm.value = { ...exposicao.value }
-  }
-})
+watch(showEdit, (open) => { if (open && exposicao.value) editForm.value = { ...exposicao.value } })
 
 async function loadObrasExposicao() {
   const links = await fetchExposicaoObras(exposicao.value.id)
   obrasExposicao.value = await Promise.all(
     links.map(async (link) => {
       const obra = await fetchObra(link.obra)
-      return {
-        link_id: link.id,
-        obra_id: link.obra,
-        titulo: obra.titulo,
-        tecnica: obra.tecnica,
-        posicao_sala: link.posicao_sala,
-        status_conservacao: link.status_conservacao,
-      }
+      return { link_id: link.id, obra_id: link.obra, titulo: obra.titulo, tecnica: obra.tecnica, posicao_sala: link.posicao_sala, status_conservacao: link.status_conservacao }
     }),
   )
 }
@@ -328,9 +212,9 @@ onMounted(async () => {
 async function alterarStatus() {
   try {
     exposicao.value = await updateExposicao(exposicao.value.id, { status: novoStatus.value })
-    ElMessage.success('Status atualizado!')
+    toast.success('Status atualizado!')
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
     novoStatus.value = exposicao.value.status
   }
 }
@@ -339,10 +223,10 @@ async function salvarEdicao() {
   actionLoading.value = true
   try {
     exposicao.value = await updateExposicao(exposicao.value.id, editForm.value)
-    ElMessage.success('Exposição atualizada!')
+    toast.success('Exposição atualizada!')
     showEdit.value = false
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     actionLoading.value = false
   }
@@ -350,32 +234,29 @@ async function salvarEdicao() {
 
 async function confirmarExclusao() {
   try {
-    await ElMessageBox.confirm('Excluir esta exposição?', 'Confirmar exclusão', { type: 'warning' })
+    await confirmDialog('Excluir esta exposição?', 'Confirmar')
     await deleteExposicao(exposicao.value.id)
-    ElMessage.success('Exposição excluída.')
+    toast.success('Exposição excluída.')
     router.push({ name: 'exposicoes' })
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(apiError(e))
+    if (e !== 'cancel') toast.error(apiError(e))
   }
 }
 
 async function adicionarObra() {
-  if (!obraForm.value.obra || !obraForm.value.data_entrada || !obraForm.value.posicao_sala) {
-    ElMessage.warning('Preencha obra, data e posição na sala.')
+  if (!formularioObraNaExposicao.value.obra || !formularioObraNaExposicao.value.data_entrada || !formularioObraNaExposicao.value.posicao_sala) {
+    toast.warning('Preencha obra, data e posição.')
     return
   }
   actionLoading.value = true
   try {
-    await createExposicaoObra({
-      exposicao: exposicao.value.id,
-      ...obraForm.value,
-    })
+    await createExposicaoObra({ exposicao: exposicao.value.id, ...formularioObraNaExposicao.value })
     await loadObrasExposicao()
     showAddObra.value = false
-    obraForm.value = emptyObraForm()
-    ElMessage.success('Obra adicionada à exposição!')
+    formularioObraNaExposicao.value = criarFormularioVazioObraNaExposicao()
+    toast.success('Obra adicionada!')
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     actionLoading.value = false
   }
@@ -383,30 +264,28 @@ async function adicionarObra() {
 
 async function removerObra(row) {
   try {
-    await ElMessageBox.confirm(`Remover "${row.titulo}" desta exposição?`, 'Confirmar', { type: 'warning' })
+    await confirmDialog(`Remover "${row.titulo}"?`, 'Confirmar')
     await deleteExposicaoObra(row.link_id)
     await loadObrasExposicao()
-    ElMessage.success('Obra removida da exposição.')
+    toast.success('Obra removida.')
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(apiError(e))
+    if (e !== 'cancel') toast.error(apiError(e))
   }
 }
 
 async function comprar() {
   actionLoading.value = true
   try {
-    const criados = await comprarIngressos(
+    const ingressosCriados = await comprarIngressos(
       auth.user.id,
       exposicao.value.id,
-      ingressoQtd.value,
-      ingressoTipo.value,
+      quantidadeIngressosCompra.value,
+      tipoIngressoSelecionado.value,
     )
-    ElMessage.success(`${criados.length} ingresso(s) comprado(s)!`)
+    toast.success(`${ingressosCriados.length} ingresso(s) comprado(s)!`)
     showIngresso.value = false
-    ingressoQtd.value = 1
-    ingressoTipo.value = 'inteira'
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     actionLoading.value = false
   }
@@ -415,11 +294,11 @@ async function comprar() {
 async function reservar() {
   actionLoading.value = true
   try {
-    await criarReserva(auth.user.id, exposicao.value.id, reservaQtd.value, reservaData.value)
-    ElMessage.success('Reserva confirmada!')
+    await criarReserva(auth.user.id, exposicao.value.id, quantidadePessoasReserva.value, dataReservaSelecionada.value)
+    toast.success('Reserva confirmada!')
     showReserva.value = false
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     actionLoading.value = false
   }
@@ -428,118 +307,12 @@ async function reservar() {
 async function avaliar() {
   actionLoading.value = true
   try {
-    await criarAvaliacao(auth.user.id, exposicao.value.id, nota.value, comentario.value)
-    ElMessage.success('Avaliação enviada!')
+    await criarAvaliacao(auth.user.id, exposicao.value.id, notaAvaliacao.value, comentarioAvaliacao.value)
+    toast.success('Avaliação enviada!')
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     actionLoading.value = false
   }
 }
 </script>
-
-<style scoped>
-.desc {
-  color: var(--text-muted);
-  line-height: 1.65;
-  font-size: 0.95rem;
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-}
-
-.section-head .section-title {
-  margin: 0;
-}
-
-.obra-exp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.obra-exp-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.obra-exp-main {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  cursor: pointer;
-}
-
-.obra-exp-main:hover strong {
-  color: #7c3aed;
-}
-
-.obra-exp-row span {
-  display: block;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 0.15rem;
-}
-
-.obra-exp-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.visitante-panel {
-  border-color: #bfdbfe;
-  background: #f8fbff;
-}
-
-.func-panel {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-}
-
-.panel-hint {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  margin-bottom: 1rem;
-  line-height: 1.5;
-}
-
-.staff-tips {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  padding-left: 1.1rem;
-  line-height: 1.8;
-}
-
-.total-line {
-  font-size: 0.95rem;
-  margin: 0.5rem 0;
-}
-
-.form-hint {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  line-height: 1.45;
-}
-
-@media (max-width: 768px) {
-  .obra-exp-main {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-</style>

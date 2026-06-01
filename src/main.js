@@ -1,23 +1,22 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import { createBootstrap } from 'bootstrap-vue-next'
 import { MotionPlugin } from '@vueuse/motion'
+import * as bootstrap from 'bootstrap'
+
+import 'bootstrap/dist/css/bootstrap.min.css'
+import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 import 'lenis/dist/lenis.css'
 
 import App from './App.vue'
 import router from './router'
 import './assets/main.css'
 
+window.bootstrap = bootstrap
+
 const app = createApp(App)
-
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component)
-}
-
 app.use(createPinia())
 app.use(router)
+app.use(createBootstrap())
 app.use(MotionPlugin)
-app.use(ElementPlus, { locale: undefined })
 app.mount('#app')

@@ -1,5 +1,5 @@
 <template>
-  <div v-loading="loading">
+  <AppSpinner :show="loading">
     <DetailBanner
       v-if="galeria"
       variant="galeria"
@@ -7,66 +7,68 @@
       :meta="galeria.endereco"
       :badge="galeria.aberta ? 'Aberta ao público' : 'Fechada'"
     >
-      <template v-if="auth.canManage" #actions>
-        <el-button size="small" @click="showEdit = true">Editar</el-button>
-        <el-button size="small" type="danger" plain @click="confirmarExclusao">Excluir</el-button>
+      <template v-if="auth.canStaff" #actions>
+        <button type="button" class="btn btn-light btn-sm" @click="showEdit = true">Editar</button>
+        <button type="button" class="btn btn-outline-light btn-sm" @click="confirmarExclusao">Excluir</button>
       </template>
     </DetailBanner>
 
     <template v-if="galeria">
-      <div class="content-panel" style="margin-bottom: 1.25rem">
-        <p class="desc">{{ galeria.descricao }}</p>
+      <div class="card mb-4">
+        <div class="card-body text-muted">{{ galeria.descricao }}</div>
       </div>
 
-      <div class="section-head">
-        <h3 class="section-title">Exposições nesta galeria ({{ exposicoes.length }})</h3>
-        <el-button v-if="auth.canManage" type="primary" size="small" @click="novaExposicao">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="h5 mb-0">Exposições ({{ exposicoes.length }})</h3>
+        <button v-if="auth.canStaff" type="button" class="btn btn-primary btn-sm" @click="novaExposicao">
           + Nova exposição
-        </el-button>
+        </button>
       </div>
-      <div class="exp-mini-list">
-        <div
+
+      <div class="list-group">
+        <button
           v-for="e in exposicoes"
           :key="e.id"
-          class="exp-mini-item"
+          type="button"
+          class="list-group-item list-group-item-action"
           @click="$router.push(`/exposicoes/${e.id}`)"
         >
-          <span class="exp-mini-title">{{ e.titulo }}</span>
-          <el-tag size="small" effect="plain">{{ e.status }}</el-tag>
-          <span class="exp-mini-date">{{ e.data_inicio }} → {{ e.data_fim }}</span>
-        </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <strong>{{ e.titulo }}</strong>
+            <span class="badge text-bg-secondary">{{ e.status }}</span>
+          </div>
+          <small class="text-muted">{{ e.data_inicio }} → {{ e.data_fim }}</small>
+        </button>
       </div>
-      <el-empty v-if="!exposicoes.length" description="Sem exposições nesta galeria" />
+      <EmptyState v-if="!exposicoes.length" message="Sem exposições nesta galeria" icon="CalendarX" />
     </template>
 
-    <el-dialog v-model="showEdit" title="Editar galeria" width="480px">
-      <el-form label-position="top">
-        <el-form-item label="Nome" required>
-          <el-input v-model="form.nome" />
-        </el-form-item>
-        <el-form-item label="Endereço" required>
-          <el-input v-model="form.endereco" />
-        </el-form-item>
-        <el-form-item label="Descrição">
-          <el-input v-model="form.descricao" type="textarea" rows="3" />
-        </el-form-item>
-        <el-form-item label="Status">
-          <el-switch v-model="form.aberta" active-text="Aberta" inactive-text="Fechada" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showEdit = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="salvar">Salvar</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <FormModal v-model="showEdit" title="Editar galeria" :saving="saving" @save="salvar">
+      <FormField label="Nome">
+        <input v-model="form.nome" class="form-control" />
+      </FormField>
+      <FormField label="Endereço">
+        <input v-model="form.endereco" class="form-control" />
+      </FormField>
+      <FormField label="Descrição">
+        <textarea v-model="form.descricao" class="form-control" rows="3" />
+      </FormField>
+      <div class="form-check form-switch">
+        <input id="edit-aberta" v-model="form.aberta" class="form-check-input" type="checkbox" />
+        <label class="form-check-label" for="edit-aberta">Aberta</label>
+      </div>
+    </FormModal>
+  </AppSpinner>
 </template>
 
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import AppSpinner from '@/components/AppSpinner.vue'
 import DetailBanner from '@/components/DetailBanner.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FormField from '@/components/FormField.vue'
+import FormModal from '@/components/FormModal.vue'
 import {
   apiError,
   deleteGaleria,
@@ -74,11 +76,14 @@ import {
   fetchGaleria,
   updateGaleria,
 } from '@/api/services'
+import { confirmDialog } from '@/composables/useToast'
+import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 const loading = ref(true)
 const saving = ref(false)
 const galeria = ref(null)
@@ -87,17 +92,14 @@ const showEdit = ref(false)
 const form = ref({})
 
 watch(showEdit, (open) => {
-  if (open && galeria.value) {
-    form.value = { ...galeria.value }
-  }
+  if (open && galeria.value) form.value = { ...galeria.value }
 })
 
 async function load() {
-  const id = route.params.id
   loading.value = true
   try {
-    galeria.value = await fetchGaleria(id)
-    exposicoes.value = await fetchExposicoes({ galeria: id })
+    galeria.value = await fetchGaleria(route.params.id)
+    exposicoes.value = await fetchExposicoes({ galeria: route.params.id })
   } finally {
     loading.value = false
   }
@@ -107,10 +109,10 @@ async function salvar() {
   saving.value = true
   try {
     galeria.value = await updateGaleria(galeria.value.id, form.value)
-    ElMessage.success('Galeria atualizada!')
+    toast.success('Galeria atualizada!')
     showEdit.value = false
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }
@@ -118,16 +120,12 @@ async function salvar() {
 
 async function confirmarExclusao() {
   try {
-    await ElMessageBox.confirm(
-      'Excluir esta galeria? Exposições vinculadas também serão removidas.',
-      'Confirmar exclusão',
-      { type: 'warning' },
-    )
+    await confirmDialog('Excluir esta galeria?', 'Confirmar exclusão')
     await deleteGaleria(galeria.value.id)
-    ElMessage.success('Galeria excluída.')
+    toast.success('Galeria excluída.')
     router.push({ name: 'galerias' })
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(apiError(e))
+    if (e !== 'cancel') toast.error(apiError(e))
   }
 }
 
@@ -137,61 +135,3 @@ function novaExposicao() {
 
 onMounted(load)
 </script>
-
-<style scoped>
-.desc {
-  color: var(--text-muted);
-  line-height: 1.65;
-  font-size: 0.95rem;
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.section-head .section-title {
-  margin: 0;
-}
-
-.exp-mini-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.exp-mini-item {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.85rem 1rem;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.exp-mini-item:hover {
-  border-color: #10b981;
-}
-
-.exp-mini-title {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.exp-mini-date {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-@media (max-width: 560px) {
-  .exp-mini-item {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

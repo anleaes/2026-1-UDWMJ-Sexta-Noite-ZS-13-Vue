@@ -1,18 +1,25 @@
 <template>
-  <div class="detail-banner" :class="`banner-${variant}`">
-    <button type="button" class="back-btn" @click="$router.back()">← Voltar</button>
-    <div class="banner-body">
-      <span v-if="badge" class="banner-badge">{{ badge }}</span>
-      <h1>{{ title }}</h1>
-      <p v-if="meta">{{ meta }}</p>
+  <MotionReveal :y="18">
+    <div class="detail-banner rounded-4 text-white mb-4 shadow" :class="`banner-${variant}`">
+      <div class="p-4">
+        <button type="button" class="btn btn-sm btn-light btn-back mb-3" aria-label="Voltar à página anterior" @click="$router.back()">
+          <AppIcon name="ArrowLeft" :size="16" klass="me-1" decorative /> Voltar
+        </button>
+        <span v-if="badge" class="badge rounded-pill bg-white bg-opacity-25 mb-2">{{ badge }}</span>
+        <h1 class="h2 font-display mb-1">{{ title }}</h1>
+        <p v-if="meta" class="mb-0 opacity-90">{{ meta }}</p>
+        <div v-if="$slots.actions" class="mt-3 d-flex flex-wrap gap-2">
+          <slot name="actions" />
+        </div>
+      </div>
     </div>
-    <div v-if="$slots.actions" class="banner-actions">
-      <slot name="actions" />
-    </div>
-  </div>
+  </MotionReveal>
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue'
+import MotionReveal from '@/components/MotionReveal.vue'
+
 defineProps({
   title: { type: String, required: true },
   meta: { type: String, default: '' },
@@ -26,69 +33,25 @@ defineProps({
 </script>
 
 <style scoped>
-.detail-banner {
-  border-radius: var(--radius);
-  padding: 1.25rem 1.35rem;
-  margin-bottom: 1.25rem;
-  color: #fff;
-  position: relative;
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-wrap: balance;
 }
 
-.banner-galeria {
-  background: linear-gradient(120deg, #059669, #10b981);
-}
-
-.banner-obra {
-  background: linear-gradient(120deg, #d97706, #f59e0b);
-}
-
-.banner-exposicao {
-  background: linear-gradient(120deg, #7c3aed, #a855f7);
-}
-
-.banner-default {
-  background: linear-gradient(120deg, #2563eb, #3b82f6);
-}
-
-.back-btn {
+.btn-back {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: #fff;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  margin-bottom: 0.75rem;
 }
 
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+.btn-back:hover {
+  background: rgba(255, 255, 255, 0.35);
+  color: #fff;
 }
 
-.banner-badge {
-  display: inline-block;
-  background: rgba(255, 255, 255, 0.25);
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.banner-body h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 0.35rem;
-}
-
-.banner-body p {
-  opacity: 0.9;
-  font-size: 0.9rem;
-}
-
-.banner-actions {
-  margin-top: 1rem;
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
+.banner-galeria { background: linear-gradient(135deg, #047857, #10b981); }
+.banner-obra { background: linear-gradient(135deg, #b45309, #fbbf24); }
+.banner-exposicao { background: linear-gradient(135deg, #6d28d9, #c084fc); }
+.banner-default { background: linear-gradient(135deg, #1e3a5f, #3b82f6); }
 </style>

@@ -1,191 +1,102 @@
 <template>
-  <div v-loading="loading">
-    <DetailBanner
-      v-if="obra"
-      variant="obra"
-      :title="obra.titulo"
-      :meta="`${obra.tecnica} · ${obra.ano_criacao}`"
-      :badge="categoria?.nome"
-    >
-      <template v-if="auth.canManage" #actions>
-        <el-button size="small" @click="showEdit = true">Editar</el-button>
-        <el-button size="small" type="danger" plain @click="confirmarExclusao">Excluir</el-button>
+  <AppSpinner :show="loading">
+    <DetailBanner v-if="obra" variant="obra" :title="obra.titulo" :meta="`${obra.tecnica} · ${obra.ano_criacao}`" :badge="categoria?.nome">
+      <template v-if="auth.canStaff" #actions>
+        <button type="button" class="btn btn-light btn-sm" @click="showEdit = true">Editar</button>
+        <button type="button" class="btn btn-outline-light btn-sm" @click="confirmarExclusao">Excluir</button>
       </template>
     </DetailBanner>
 
-    <template v-if="obra">
-      <div class="obra-layout">
-        <div class="content-panel">
-          <p class="price">{{ formatMoney(obra.valor_estimado) }}</p>
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="Técnica">{{ obra.tecnica }}</el-descriptions-item>
-            <el-descriptions-item label="Ano">{{ obra.ano_criacao }}</el-descriptions-item>
-            <el-descriptions-item label="Categoria">{{ categoria?.nome || '—' }}</el-descriptions-item>
-          </el-descriptions>
-
-          <div class="section-head">
-            <h3 class="section-title">Artistas</h3>
-            <el-button v-if="auth.canManage" size="small" type="primary" plain @click="showArtista = true">
-              + Vincular artista
-            </el-button>
+    <div v-if="obra" class="row g-4">
+      <div class="col-lg-8">
+        <div class="card card-body">
+          <p class="h4 text-warning">{{ formatMoney(obra.valor_estimado) }}</p>
+          <table class="table table-sm">
+            <tbody>
+              <tr><th>Técnica</th><td>{{ obra.tecnica }}</td></tr>
+              <tr><th>Ano</th><td>{{ obra.ano_criacao }}</td></tr>
+              <tr><th>Categoria</th><td>{{ categoria?.nome || '—' }}</td></tr>
+            </tbody>
+          </table>
+          <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+            <h3 class="h6 mb-0">Artistas</h3>
+            <button v-if="auth.canStaff" type="button" class="btn btn-sm btn-outline-primary" @click="showArtista = true">+ Vincular</button>
           </div>
-          <ul v-if="artistas.length" class="artist-chips">
-            <li v-for="a in artistas" :key="a.id">
-              <div class="artist-row">
-                <div>
-                  <strong>{{ a.artista_nome }}</strong>
-                  <span>{{ a.funcao }} · {{ formatDate(a.data_participacao) }}</span>
-                </div>
-                <el-button
-                  v-if="auth.canManage"
-                  type="danger"
-                  link
-                  size="small"
-                  @click="removerArtista(a)"
-                >
-                  Remover
-                </el-button>
-              </div>
+          <ul v-if="artistas.length" class="list-group">
+            <li v-for="a in artistas" :key="a.id" class="list-group-item d-flex justify-content-between">
+              <div><strong>{{ a.artista_nome }}</strong><div class="small text-muted">{{ a.funcao }} · {{ formatDate(a.data_participacao) }}</div></div>
+              <button v-if="auth.canStaff" type="button" class="btn btn-sm btn-outline-danger" @click="removerArtista(a)">Remover</button>
             </li>
           </ul>
-          <p v-else class="empty-hint">Nenhum artista vinculado.</p>
+          <p v-else class="text-muted small">Nenhum artista vinculado.</p>
         </div>
-
-        <aside class="side-stack">
-          <div v-if="certificado" class="cert-panel">
-            <div class="panel-head">
-              <h3>🪪 Certificado</h3>
-              <el-button v-if="auth.canManage" link size="small" @click="editarCertificado">Editar</el-button>
-            </div>
-            <p><span>Código</span>{{ certificado.codigo }}</p>
-            <p><span>Emissão</span>{{ formatDate(certificado.data_emissao) }}</p>
-            <p><span>Órgão</span>{{ certificado.orgao_responsavel }}</p>
-            <el-tag v-if="certificadoValido" type="success" size="small">Válido</el-tag>
-          </div>
-          <div v-else-if="auth.canManage" class="cert-panel cert-empty">
-            <h3>🪪 Certificado</h3>
-            <p class="empty-hint">Obra sem certificado de autenticidade.</p>
-            <el-button type="primary" size="small" @click="showCert = true">Emitir certificado</el-button>
-          </div>
-
-          <div v-if="auth.user?.role === 'funcionario'" class="staff-panel">
-            <h3>🔧 Restauração</h3>
-            <p class="empty-hint">Registrar intervenção de conservação nesta obra.</p>
-            <el-button size="small" @click="showRestauracao = true">Registrar restauração</el-button>
-          </div>
-        </aside>
       </div>
-    </template>
+      <div class="col-lg-4 d-flex flex-column gap-3">
+        <div v-if="certificado" class="card card-body bg-warning bg-opacity-10">
+          <div class="d-flex justify-content-between"><h3 class="h6">Certificado</h3>
+            <button v-if="auth.canStaff" type="button" class="btn btn-sm btn-link" @click="editarCertificado">Editar</button></div>
+          <p class="small mb-1"><strong>Código:</strong> {{ certificado.codigo }}</p>
+          <p class="small mb-1"><strong>Emissão:</strong> {{ formatDate(certificado.data_emissao) }}</p>
+          <span v-if="certificadoValido" class="badge text-bg-success">Válido</span>
+        </div>
+        <div v-else-if="auth.canStaff" class="card card-body text-center">
+          <p class="small text-muted">Sem certificado</p>
+          <button type="button" class="btn btn-primary btn-sm" @click="showCert = true">Emitir certificado</button>
+        </div>
+        <div v-if="auth.isFuncionario" class="card card-body bg-success bg-opacity-10">
+          <h3 class="h6">Restauração</h3>
+          <button type="button" class="btn btn-sm btn-outline-success" @click="showRestauracao = true">Registrar</button>
+        </div>
+      </div>
+    </div>
 
-    <!-- Editar obra -->
-    <el-dialog v-model="showEdit" title="Editar obra" width="520px">
-      <el-form label-position="top">
-        <el-form-item label="Título" required>
-          <el-input v-model="form.titulo" />
-        </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="Técnica">
-              <el-input v-model="form.tecnica" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="Ano">
-              <el-input-number v-model="form.ano_criacao" :min="1000" :max="2100" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="Valor estimado (R$)">
-          <el-input-number v-model="form.valor_estimado" :min="0" :precision="2" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Categoria">
-          <el-select v-model="form.categoria" style="width: 100%">
-            <el-option v-for="c in categorias" :key="c.id" :label="c.nome" :value="c.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showEdit = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="salvarObra">Salvar</el-button>
-      </template>
-    </el-dialog>
+    <FormModal v-model="showEdit" title="Editar obra" :saving="saving" @save="salvarObra">
+      <FormField label="Título"><input v-model="form.titulo" class="form-control" /></FormField>
+      <div class="row g-2 mb-3">
+        <div class="col-6"><FormField label="Técnica" inline><input v-model="form.tecnica" class="form-control" /></FormField></div>
+        <div class="col-6"><FormField label="Ano" inline><input v-model.number="form.ano_criacao" type="number" class="form-control" /></FormField></div>
+      </div>
+      <FormField label="Valor"><input v-model.number="form.valor_estimado" type="number" step="0.01" class="form-control" /></FormField>
+      <FormField label="Categoria">
+        <select v-model="form.categoria" class="form-select"><option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nome }}</option></select>
+      </FormField>
+    </FormModal>
 
-    <!-- Certificado -->
-    <el-dialog v-model="showCert" :title="certificado ? 'Editar certificado' : 'Emitir certificado'" width="440px">
-      <el-form label-position="top">
-        <el-form-item label="Código" required>
-          <el-input v-model="certForm.codigo" />
-        </el-form-item>
-        <el-form-item label="Data de emissão" required>
-          <el-date-picker v-model="certForm.data_emissao" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Órgão responsável" required>
-          <el-input v-model="certForm.orgao_responsavel" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCert = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="salvarCertificado">Salvar</el-button>
-      </template>
-    </el-dialog>
+    <FormModal v-model="showCert" :title="certificado ? 'Editar certificado' : 'Emitir certificado'" :saving="saving" @save="salvarCertificado">
+      <FormField label="Código"><input v-model="certForm.codigo" class="form-control" /></FormField>
+      <FormField label="Data emissão"><input v-model="certForm.data_emissao" type="date" class="form-control" /></FormField>
+      <FormField label="Órgão"><input v-model="certForm.orgao_responsavel" class="form-control" /></FormField>
+    </FormModal>
 
-    <!-- Artista -->
-    <el-dialog v-model="showArtista" title="Vincular artista" width="440px">
-      <el-form label-position="top">
-        <el-form-item label="Artista" required>
-          <el-select v-model="artistaForm.artista" filterable placeholder="Selecione" style="width: 100%">
-            <el-option
-              v-for="a in artistasLista"
-              :key="a.id"
-              :label="`${a.first_name} ${a.last_name}`.trim() || a.username"
-              :value="a.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Função" required>
-          <el-input v-model="artistaForm.funcao" placeholder="Autor, coautor..." />
-        </el-form-item>
-        <el-form-item label="Data de participação" required>
-          <el-date-picker
-            v-model="artistaForm.data_participacao"
-            type="date"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showArtista = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="vincularArtista">Vincular</el-button>
-      </template>
-    </el-dialog>
+    <FormModal v-model="showArtista" title="Vincular artista" save-label="Vincular" :saving="saving" @save="vincularArtista">
+      <FormField label="Artista">
+        <select v-model="formularioVinculoArtista.artista" class="form-select">
+          <option :value="null">Selecione</option>
+          <option v-for="a in artistasLista" :key="a.id" :value="a.id">{{ a.first_name }} {{ a.last_name }}</option>
+        </select>
+      </FormField>
+      <FormField label="Função"><input v-model="formularioVinculoArtista.funcao" class="form-control" /></FormField>
+      <FormField label="Data"><input v-model="formularioVinculoArtista.data_participacao" type="date" class="form-control" /></FormField>
+    </FormModal>
 
-    <!-- Restauração -->
-    <el-dialog v-model="showRestauracao" title="Registrar restauração" width="440px">
-      <el-form label-position="top">
-        <el-form-item label="Data de início" required>
-          <el-date-picker v-model="restForm.data_inicio" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Descrição" required>
-          <el-input v-model="restForm.descricao" type="textarea" rows="3" />
-        </el-form-item>
-        <el-form-item label="Custo (R$)" required>
-          <el-input-number v-model="restForm.custo" :min="0" :precision="2" style="width: 100%" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showRestauracao = false">Cancelar</el-button>
-        <el-button type="primary" :loading="saving" @click="salvarRestauracao">Registrar</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <FormModal v-model="showRestauracao" title="Registrar restauração" save-label="Registrar" :saving="saving" @save="salvarRestauracao">
+      <FormField label="Data início"><input v-model="formularioNovaRestauracao.data_inicio" type="date" class="form-control" /></FormField>
+      <FormField label="Descrição"><textarea v-model="formularioNovaRestauracao.descricao" class="form-control" rows="3" /></FormField>
+      <FormField label="Custo (R$)"><input v-model.number="formularioNovaRestauracao.custo" type="number" step="0.01" class="form-control" /></FormField>
+    </FormModal>
+  </AppSpinner>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { useToast } from '@/composables/useToast'
+import { confirmDialog } from '@/composables/useToast'
+import AppSpinner from '@/components/AppSpinner.vue'
 import DetailBanner from '@/components/DetailBanner.vue'
+import FormField from '@/components/FormField.vue'
+import FormModal from '@/components/FormModal.vue'
+import { formatDate, formatMoney } from '@/utils/format'
 import {
   apiError,
   createArtistaObra,
@@ -204,10 +115,16 @@ import {
   updateObra,
 } from '@/api/services'
 import { useAuthStore } from '@/stores/auth'
+import {
+  criarFormularioVazioCertificado,
+  criarFormularioVazioRestauracao,
+  criarFormularioVazioVinculoArtistaObra,
+} from '@/constants/obra'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 const loading = ref(true)
 const saving = ref(false)
 const obra = ref(null)
@@ -221,24 +138,11 @@ const showCert = ref(false)
 const showArtista = ref(false)
 const showRestauracao = ref(false)
 const form = ref({})
-const certForm = ref(emptyCert())
-const artistaForm = ref({ artista: null, funcao: 'Autor', data_participacao: '' })
-const restForm = ref({ data_inicio: '', descricao: '', custo: 0 })
+const certForm = ref(criarFormularioVazioCertificado())
+const formularioVinculoArtista = ref(criarFormularioVazioVinculoArtistaObra())
+const formularioNovaRestauracao = ref(criarFormularioVazioRestauracao())
 
 const certificadoValido = computed(() => certificado.value?.codigo && certificado.value?.data_emissao)
-
-function emptyCert() {
-  return { codigo: '', data_emissao: '', orgao_responsavel: '' }
-}
-
-function formatMoney(v) {
-  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function formatDate(d) {
-  if (!d) return '—'
-  const [y, m, day] = d.split('-')
-  return `${day}/${m}/${y}`
-}
 
 watch(showEdit, (open) => {
   if (open && obra.value) {
@@ -286,10 +190,10 @@ async function salvarObra() {
     if (obra.value.categoria) {
       categoria.value = await fetchCategoria(obra.value.categoria)
     }
-    ElMessage.success('Obra atualizada!')
+    toast.success('Obra atualizada!')
     showEdit.value = false
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }
@@ -297,23 +201,23 @@ async function salvarObra() {
 
 async function confirmarExclusao() {
   try {
-    await ElMessageBox.confirm('Excluir esta obra permanentemente?', 'Confirmar exclusão', { type: 'warning' })
+    await confirmDialog('Excluir esta obra permanentemente?', 'Confirmar exclusão')
     await deleteObra(obra.value.id)
-    ElMessage.success('Obra excluída.')
+    toast.success('Obra excluída.')
     router.push({ name: 'obras' })
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(apiError(e))
+    if (e !== 'cancel') toast.error(apiError(e))
   }
 }
 
 function editarCertificado() {
-  certForm.value = certificado.value ? { ...certificado.value } : emptyCert()
+  certForm.value = certificado.value ? { ...certificado.value } : criarFormularioVazioCertificado()
   showCert.value = true
 }
 
 async function salvarCertificado() {
   if (!certForm.value.codigo || !certForm.value.data_emissao || !certForm.value.orgao_responsavel) {
-    ElMessage.warning('Preencha todos os campos do certificado.')
+    toast.warning('Preencha todos os campos do certificado.')
     return
   }
   saving.value = true
@@ -323,34 +227,34 @@ async function salvarCertificado() {
     } else {
       certificado.value = await createCertificado({ ...certForm.value, obra: obra.value.id })
     }
-    ElMessage.success('Certificado salvo!')
+    toast.success('Certificado salvo!')
     showCert.value = false
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }
 }
 
 async function vincularArtista() {
-  if (!artistaForm.value.artista || !artistaForm.value.funcao || !artistaForm.value.data_participacao) {
-    ElMessage.warning('Preencha artista, função e data.')
+  if (!formularioVinculoArtista.value.artista || !formularioVinculoArtista.value.funcao || !formularioVinculoArtista.value.data_participacao) {
+    toast.warning('Preencha artista, função e data.')
     return
   }
   saving.value = true
   try {
     await createArtistaObra({
-      artista: artistaForm.value.artista,
+      artista: formularioVinculoArtista.value.artista,
       obra: obra.value.id,
-      funcao: artistaForm.value.funcao,
-      data_participacao: artistaForm.value.data_participacao,
+      funcao: formularioVinculoArtista.value.funcao,
+      data_participacao: formularioVinculoArtista.value.data_participacao,
     })
     await loadArtistas()
     showArtista.value = false
-    artistaForm.value = { artista: null, funcao: 'Autor', data_participacao: '' }
-    ElMessage.success('Artista vinculado!')
+    formularioVinculoArtista.value = criarFormularioVazioVinculoArtistaObra()
+    toast.success('Artista vinculado!')
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }
@@ -358,18 +262,18 @@ async function vincularArtista() {
 
 async function removerArtista(link) {
   try {
-    await ElMessageBox.confirm('Remover vínculo com este artista?', 'Confirmar', { type: 'warning' })
+    await confirmDialog('Remover vínculo com este artista?', 'Confirmar')
     await deleteArtistaObra(link.id)
     await loadArtistas()
-    ElMessage.success('Vínculo removido.')
+    toast.success('Vínculo removido.')
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(apiError(e))
+    if (e !== 'cancel') toast.error(apiError(e))
   }
 }
 
 async function salvarRestauracao() {
-  if (!restForm.value.data_inicio || !restForm.value.descricao) {
-    ElMessage.warning('Preencha data e descrição.')
+  if (!formularioNovaRestauracao.value.data_inicio || !formularioNovaRestauracao.value.descricao) {
+    toast.warning('Preencha data e descrição.')
     return
   }
   saving.value = true
@@ -377,15 +281,15 @@ async function salvarRestauracao() {
     await createRestauracao({
       obra: obra.value.id,
       funcionario: auth.user.id,
-      data_inicio: restForm.value.data_inicio,
-      descricao: restForm.value.descricao,
-      custo: String(restForm.value.custo),
+      data_inicio: formularioNovaRestauracao.value.data_inicio,
+      descricao: formularioNovaRestauracao.value.descricao,
+      custo: String(formularioNovaRestauracao.value.custo),
     })
-    ElMessage.success('Restauração registrada!')
+    toast.success('Restauração registrada!')
     showRestauracao.value = false
-    restForm.value = { data_inicio: '', descricao: '', custo: 0 }
+    formularioNovaRestauracao.value = criarFormularioVazioRestauracao()
   } catch (e) {
-    ElMessage.error(apiError(e))
+    toast.error(apiError(e))
   } finally {
     saving.value = false
   }

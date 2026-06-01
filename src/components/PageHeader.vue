@@ -1,19 +1,19 @@
 <template>
-  <MotionReveal :y="14" :duration="480">
-    <header class="page-header" :class="`theme-${theme}`">
-      <div v-if="icon || $slots.icon" class="page-header-icon">
-        <slot name="icon">
-          <span v-if="icon">{{ icon }}</span>
-        </slot>
+  <MotionReveal :y="14">
+    <div class="page-header card border-0 mb-4 overflow-hidden" :class="`theme-${theme}`">
+      <div class="card-body d-flex flex-wrap align-items-start gap-3">
+        <div v-if="$slots.icon" class="header-icon rounded-3 d-flex align-items-center justify-content-center">
+          <slot name="icon" />
+        </div>
+        <div class="flex-grow-1 min-w-0">
+          <h1 class="h3 mb-1 font-display">{{ title }}</h1>
+          <p v-if="subtitle" class="text-muted mb-0 small">{{ subtitle }}</p>
+        </div>
+        <div v-if="$slots.extra" class="d-flex flex-wrap gap-2 align-items-center">
+          <slot name="extra" />
+        </div>
       </div>
-      <div class="page-header-text">
-        <h1>{{ title }}</h1>
-        <p v-if="subtitle">{{ subtitle }}</p>
-      </div>
-      <div v-if="$slots.extra" class="page-header-extra">
-        <slot name="extra" />
-      </div>
-    </header>
+    </div>
   </MotionReveal>
 </template>
 
@@ -23,7 +23,6 @@ import MotionReveal from '@/components/MotionReveal.vue'
 defineProps({
   title: { type: String, required: true },
   subtitle: { type: String, default: '' },
-  icon: { type: String, default: '' },
   theme: {
     type: String,
     default: 'default',
@@ -33,80 +32,38 @@ defineProps({
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1.25rem 1.35rem;
-  border-radius: var(--radius);
-  margin-bottom: 1.35rem;
-  border: 1px solid var(--border);
-  background: #fff;
-}
-
-.page-header-icon {
-  font-size: 2rem;
-  line-height: 1;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.page-header-text h1 {
+.font-display {
   font-family: var(--font-display);
-  font-size: 1.55rem;
   font-weight: 400;
-  margin-bottom: 0.2rem;
+  text-wrap: balance;
 }
 
-.page-header-text p {
-  color: var(--text-muted);
-  font-size: 0.9rem;
+.header-icon {
+  width: 52px;
+  height: 52px;
+  font-size: 1.5rem;
 }
 
-.page-header-extra {
-  margin-left: auto;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
+.theme-home { background: linear-gradient(135deg, #eef2ff, var(--mg-surface)); }
+.theme-home .header-icon { background: rgba(30, 58, 95, 0.1); color: var(--mg-primary); }
 
-.theme-home {
-  background: linear-gradient(135deg, #eff6ff 0%, #fff 60%);
-  border-color: #bfdbfe;
-}
+.theme-galerias { background: linear-gradient(135deg, #ecfdf5, var(--mg-surface)); }
+.theme-galerias .header-icon { background: rgba(16, 185, 129, 0.12); color: #059669; }
 
-.theme-galerias {
-  background: linear-gradient(135deg, #ecfdf5 0%, #fff 55%);
-  border-color: #a7f3d0;
-}
+.theme-obras { background: linear-gradient(135deg, #fef3c7, var(--mg-surface)); }
+.theme-obras .header-icon { background: rgba(201, 162, 39, 0.15); color: #b8860b; }
 
-.theme-obras {
-  background: linear-gradient(135deg, #fef3c7 0%, #fff 55%);
-  border-color: #fde68a;
-}
+.theme-exposicoes { background: linear-gradient(135deg, #fae8ff, var(--mg-surface)); }
+.theme-exposicoes .header-icon { background: rgba(168, 85, 247, 0.12); color: #7c3aed; }
 
-.theme-exposicoes {
-  background: linear-gradient(135deg, #fae8ff 0%, #fff 55%);
-  border-color: #e9d5ff;
-}
+.theme-perfil { background: linear-gradient(135deg, #f1f5f9, var(--mg-surface)); }
+.theme-perfil .header-icon { background: rgba(100, 116, 139, 0.12); color: #475569; }
 
-.theme-perfil {
-  background: linear-gradient(135deg, #f1f5f9 0%, #fff 55%);
-  border-color: #cbd5e1;
-}
-
-@media (max-width: 560px) {
-  .page-header {
-    flex-wrap: wrap;
-  }
-
-  .page-header-extra {
-    margin-left: 0;
-    width: 100%;
-  }
+@media (prefers-color-scheme: dark) {
+  .theme-home { background: linear-gradient(135deg, #1e293b, var(--mg-surface)); }
+  .theme-galerias { background: linear-gradient(135deg, #064e3b33, var(--mg-surface)); }
+  .theme-obras { background: linear-gradient(135deg, #78350f33, var(--mg-surface)); }
+  .theme-exposicoes { background: linear-gradient(135deg, #581c8733, var(--mg-surface)); }
+  .theme-perfil { background: linear-gradient(135deg, #33415533, var(--mg-surface)); }
 }
 </style>

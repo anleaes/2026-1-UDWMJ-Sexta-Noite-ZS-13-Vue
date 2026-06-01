@@ -1,93 +1,91 @@
 <template>
-  <div v-loading="loading" class="home-page">
+  <AppSpinner :show="loading">
     <PageHeader
       theme="home"
       :title="`Olá, ${auth.user?.first_name}!`"
-      :subtitle="`Bem-vindo ao painel · ${auth.roleLabel}`"
+      :subtitle="`Bem-vindo · ${auth.roleLabel}`"
     >
-      <template #icon>
-        <Hand :size="32" stroke-width="1.5" />
-      </template>
+      <template #icon><AppIcon name="Hand" :size="28" decorative /></template>
     </PageHeader>
 
-    <div class="quick-grid">
-      <MotionReveal
-        v-for="(item, i) in stats"
-        :key="item.label"
-        :delay="80 + i * 90"
-        :y="20"
-        klass="quick-card-wrap"
-      >
-        <button
-          type="button"
-          class="quick-card hover-lift"
-          :class="item.color"
-          @click="$router.push(item.route)"
-        >
-          <component :is="item.icon" :size="28" stroke-width="1.75" class="quick-icon" />
-          <span class="quick-value">{{ item.value }}</span>
-          <span class="quick-label">{{ item.label }}</span>
-          <span class="quick-go">Ver <ArrowRight :size="14" stroke-width="2" /></span>
-        </button>
-      </MotionReveal>
+    <div class="row g-3 mb-4">
+      <div v-for="(item, i) in cardsDashboard" :key="item.label" class="col-md-4">
+        <MotionReveal :delay="60 + i * 70" :y="16">
+          <router-link
+            :to="item.route"
+            class="card w-100 text-start border-0 h-100 stat-card text-decoration-none"
+            :class="item.color"
+          >
+            <div class="card-body">
+              <AppIcon :name="item.icon" :size="28" klass="mb-2" decorative />
+              <div class="display-6 font-display mb-0 tabular-nums">{{ item.value }}</div>
+              <div class="text-muted small">{{ item.label }}</div>
+            </div>
+          </router-link>
+        </MotionReveal>
+      </div>
     </div>
 
-    <div class="home-columns">
-      <MotionReveal :delay="350" :y="16">
-        <el-card shadow="never" class="home-about hover-lift">
-          <template #header>{{ auth.canManage ? 'Gestão do acervo' : 'Como usar o sistema' }}</template>
-          <ol v-if="auth.canManage" class="steps">
-            <li>Cadastre <router-link :to="{ name: 'galerias' }">galerias</router-link> e <router-link :to="{ name: 'exposicoes' }">exposições</router-link></li>
-            <li>Registre <router-link :to="{ name: 'obras' }">obras</router-link> com categoria e certificado</li>
-            <li>Vincule obras às exposições e artistas ao acervo</li>
-            <li>Registre restaurações e gerencie o status das mostras</li>
-          </ol>
-          <ol v-else class="steps">
-            <li>Explore <router-link :to="{ name: 'galerias' }">galerias</router-link> e suas exposições</li>
-            <li>Consulte o <router-link :to="{ name: 'obras' }">acervo de obras</router-link></li>
-            <li>Como visitante: compre ingressos e avalie exposições</li>
-          </ol>
-        </el-card>
-      </MotionReveal>
-      <MotionReveal :delay="420" :y="16">
-        <el-card shadow="never" class="home-tip hover-lift">
-          <template #header>Dica</template>
-          <p v-if="auth.canManage">
-            Como {{ auth.roleLabel }}, use os botões <strong>+ Nova</strong> nas páginas de Galerias, Obras e Exposições
-            para cadastrar conteúdo. O Django Admin também está disponível em
-            <a href="http://localhost:8001/admin/" target="_blank" rel="noopener">localhost:8001/admin</a>.
-          </p>
-          <p v-else>
-            Seu perfil está em <router-link :to="{ name: 'perfil' }">Minha conta</router-link> — edite dados, senha e veja suas atividades.
-          </p>
-        </el-card>
-      </MotionReveal>
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="card h-100">
+          <div class="card-header bg-transparent fw-semibold">
+            {{ auth.canStaff ? 'Gestão do acervo' : 'Como usar' }}
+          </div>
+          <div class="card-body">
+            <ol class="text-muted mb-0">
+              <template v-if="auth.canStaff">
+                <li>Cadastre <router-link :to="{ name: 'galerias' }">galerias</router-link> e exposições</li>
+                <li>Registre obras e categorias</li>
+                <li>Vincule obras às exposições</li>
+              </template>
+              <template v-else>
+                <li>Explore galerias e obras</li>
+                <li>Comprar ingressos como visitante</li>
+                <li>Avalie exposições visitadas</li>
+              </template>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="card h-100">
+          <div class="card-header bg-transparent fw-semibold">Atalhos</div>
+          <div class="card-body d-flex flex-column gap-2">
+            <router-link v-if="auth.isAdmin" :to="{ name: 'admin' }" class="btn btn-outline-primary d-inline-flex align-items-center gap-1">
+              <AppIcon name="Shield" :size="18" decorative /> Painel admin
+            </router-link>
+            <router-link :to="{ name: 'perfil' }" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
+              <AppIcon name="User" :size="18" decorative /> Minha conta
+            </router-link>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+  </AppSpinner>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { ArrowRight, Building2, Calendar, Hand, Palette } from 'lucide-vue-next'
+import AppIcon from '@/components/AppIcon.vue'
+import AppSpinner from '@/components/AppSpinner.vue'
 import MotionReveal from '@/components/MotionReveal.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { fetchDashboard } from '@/api/services'
 import { useAuthStore } from '@/stores/auth'
+import { criarConfiguracaoCardsDashboard } from '@/constants/home'
 
 const auth = useAuthStore()
 const loading = ref(true)
-const stats = ref([
-  { label: 'Galerias', value: 0, route: { name: 'galerias' }, icon: Building2, color: 'qc-green' },
-  { label: 'Obras', value: 0, route: { name: 'obras' }, icon: Palette, color: 'qc-amber' },
-  { label: 'Exposições', value: 0, route: { name: 'exposicoes' }, icon: Calendar, color: 'qc-purple' },
-])
+/** Cards do dashboard — valores numéricos vêm da API em onMounted */
+const cardsDashboard = ref(criarConfiguracaoCardsDashboard())
 
 onMounted(async () => {
   try {
-    const data = await fetchDashboard()
-    stats.value[0].value = data.galerias
-    stats.value[1].value = data.obras
-    stats.value[2].value = data.exposicoes
+    const dadosDashboard = await fetchDashboard()
+    cardsDashboard.value[0].value = dadosDashboard.galerias
+    cardsDashboard.value[1].value = dadosDashboard.obras
+    cardsDashboard.value[2].value = dadosDashboard.exposicoes
   } finally {
     loading.value = false
   }
@@ -95,89 +93,23 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.quick-card-wrap {
-  display: block;
-  border: none;
-  background: none;
-  padding: 0;
-  width: 100%;
-  text-align: inherit;
-  font: inherit;
-}
-
-.quick-card {
-  width: 100%;
-  text-align: left;
-  padding: 1.15rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: #fff;
+.stat-card {
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: inherit;
 }
 
-.qc-green { border-left: 4px solid #10b981; }
-.qc-amber { border-left: 4px solid #f59e0b; }
-.qc-purple { border-left: 4px solid #a855f7; }
-
-.quick-icon {
-  display: block;
-  margin-bottom: 0.35rem;
-  color: var(--text-muted);
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-.quick-value {
-  font-size: 2rem;
-  font-weight: 700;
-  display: block;
-  line-height: 1.1;
-}
+.stat-green { border-left: 4px solid #10b981 !important; }
+.stat-amber { border-left: 4px solid #c9a227 !important; }
+.stat-purple { border-left: 4px solid #a855f7 !important; }
 
-.quick-label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  display: block;
-  margin-top: 0.15rem;
-}
-
-.quick-go {
-  font-size: 0.75rem;
-  color: var(--primary);
-  margin-top: 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.home-columns {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 1rem;
-}
-
-.steps {
-  padding-left: 1.25rem;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  line-height: 1.9;
-}
-
-.home-tip p {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-@media (max-width: 640px) {
-  .quick-grid,
-  .home-columns {
-    grid-template-columns: 1fr;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .stat-card { transition: none; }
+  .stat-card:hover { transform: none; }
 }
 </style>
